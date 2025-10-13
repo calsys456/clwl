@@ -27,6 +27,12 @@
 (defvar *request-set-cursor-listener* nil)
 (defvar *request-set-selection-listener* nil)
 
+(defvar *grabbed-toplevel* nil)
+(defvar *grab-x* 0)
+(defvar *grab-y* 0)
+(defvar *grab-geobox* nil)
+(defvar *resize-edges* nil)
+
 (defvar *keyboards* nil)
 (defstruct keyboard wlr-keyboard modifiers key destroy)
 
@@ -40,11 +46,11 @@
 
 (defun focus-toplevel (toplevel)
   (when toplevel
-    (let ((prev-surface (cffi:foreign-slot-pointer
+    (let ((prev-surface (cffi:foreign-slot-value
                          (cffi:foreign-slot-pointer *seat* '(:struct wlr:seat) :keyboard-state)
                          '(:struct wlr:seat-keyboard-state)
                          :focused-surface))
-          (surface (cffi:foreign-slot-pointer
+          (surface (cffi:foreign-slot-value
                     (cffi:foreign-slot-pointer (toplevel-xdg-toplevel toplevel) '(:struct wlr:xdg-toplevel) :base)
                     '(:struct wlr:xdg-surface)
                     :surface)))
@@ -80,13 +86,15 @@
   (format t "Keycode: ~a~%" keycode)
   (case keycode
     (9 (format t "Escape key pressed, exiting...~%")
-       (wl:display-terminate *display*)
-       t)
+     (wl:display-terminate *display*)
+     t)
     (67 (format t "F1 key pressed, switching toplevel")
-        (when (> (length *toplevels*) 1)
-          (focus-toplevel (nth (mod (+ (position *focused-toplevel* *toplevels*) 1)
-                               (length *toplevels*))
-                             *toplevels*))))))
+     (when (> (length *toplevels*) 1)
+       (let ((toplevel (nth (mod (+ (position *focused-toplevel* *toplevels*) 1)
+                                 (length *toplevels*))
+                            *toplevels*)))
+         (setf *focused-toplevel* toplevel)
+         (focus-toplevel toplevel))))))
 
 (cffi:defcallback keyboard-handle-key :void ((listener :pointer) (data :pointer))
   (format t "Keyboard key event~%")
@@ -162,10 +170,10 @@
       ((eql type (cffi:foreign-enum-value 'wlr:input-device-type :pointer))
        (format t "New pointer input device~%")
        (server-new-pointer data)))
-  (let ((caps (cffi:foreign-enum-value 'wl:seat-capability :pointer)))
-    (unless *keyboards*
-      (setf caps (logior caps (cffi:foreign-enum-value 'wl:seat-capability :keyboard))))
-    (wlr:seat-set-capabilities *seat* caps))))
+    (let ((caps (cffi:foreign-enum-value 'wl:seat-capability :pointer)))
+      (unless *keyboards*
+        (setf caps (logior caps (cffi:foreign-enum-value 'wl:seat-capability :keyboard))))
+      (wlr:seat-set-capabilities *seat* caps))))
 
 (cffi:defcallback seat-request-set-cursor :void ((listener :pointer) (data :pointer))
   (declare (ignore listener data))
@@ -248,15 +256,24 @@
   (format t "Cursor frame event~%"))
 
 (cffi:defcallback output-frame :void ((listener :pointer) (data :pointer))
-  (declare (ignore listener data))
-  (format t "Output frame event~%"))
+  (declare (ignore data))
+  (format t "Output frame event~%")
+  (let ((output (find-if (lambda (o) (cffi:pointer-eq (output-frame o) listener)) *outputs*)))
+    (when output
+      (let ((scene-output (wlr:scene-get-scene-output *scene* (output-wlr-output output))))
+        (wlr:scene-output-commit scene-output (cffi:null-pointer))
+        (cffi:with-foreign-object (now '(:struct wlr:timespec))
+          (cffi:foreign-funcall "clock_gettime" :int 1 :pointer now)
+          (wlr:scene-output-send-frame-done scene-output now))))))
 
 (cffi:defcallback output-request-state :void ((listener :pointer) (data :pointer))
-  (declare (ignore listener data))
-  (format t "Output request state event~%"))
+  (format t "Output request state event~%")
+  (let ((output (find-if (lambda (o) (cffi:pointer-eq (output-request-state o) listener)) *outputs*)))
+    (wlr:output-commit-state (output-wlr-output output)
+                             (cffi:foreign-slot-pointer data '(:struct wlr:output-event-request-state) :state))))
 
 (cffi:defcallback output-destroy :void ((listener :pointer) (data :pointer))
-  (declare (ignore listener data))
+  (declare (ignore data))
   (format t "Output destroy event~%")
   (let* ((out (find-if (lambda (o) (cffi:pointer-eq (output-destroy o) listener)) *outputs*)))
     (when out
@@ -300,15 +317,167 @@
         (scene-output (wlr:scene-output-create *scene* wlr-output)))
     (wlr:scene-output-layout-add-output *scene-layout* l-output scene-output)))
 
-(cffi:defcallback server-new-xdg-toplevel :void ((listener :pointer) (data :pointer))
-  (declare (ignore listener data))
-  (format t "New XDG toplevel created~%"))
+(cffi:defcallback xdg-toplevel-map :void ((listener :pointer) (data :pointer))
+  (declare (ignore data))
+  (format t "XDG toplevel mapped~%")
+  (let ((toplevel (find-if (lambda (top) (cffi:pointer-eq (toplevel-map top) listener)) *toplevels*)))
+    (when toplevel
+      (setf *focused-toplevel* toplevel)
+      (focus-toplevel toplevel))))
+
+(cffi:defcallback xdg-toplevel-unmap :void ((listener :pointer) (data :pointer))
+  (declare (ignore data))
+  (format t "XDG toplevel unmapped~%")
+  (let ((toplevel (find-if (lambda (top) (cffi:pointer-eq (toplevel-unmap top) listener)) *toplevels*)))
+    (when toplevel
+      (when (eq toplevel *focused-toplevel*)
+        (setf *focused-toplevel* nil)
+        (focus-toplevel nil)))))
+
+(cffi:defcallback xdg-toplevel-commit :void ((listener :pointer) (data :pointer))
+  (declare (ignore data))
+  (format t "XDG toplevel committed~%")
+  (let ((toplevel (find-if (lambda (top) (cffi:pointer-eq (toplevel-commit top) listener)) *toplevels*)))
+    (when (and toplevel
+               (cffi:foreign-slot-value
+                (cffi:foreign-slot-value (toplevel-xdg-toplevel toplevel) '(:struct wlr:xdg-toplevel) :base)
+                '(:struct wlr:xdg-surface)
+                :initial-commit))
+      (wlr:xdg-toplevel-set-size (toplevel-xdg-toplevel toplevel) 0 0))))
+
+(cffi:defcallback xdg-toplevel-destroy :void ((listener :pointer) (data :pointer))
+  (declare (ignore data))
+  (format t "XDG toplevel destroyed~%")
+  (let* ((toplevel (find-if (lambda (top) (cffi:pointer-eq (toplevel-destroy top) listener)) *toplevels*)))
+    (when toplevel
+      (setf *toplevels* (remove toplevel *toplevels*))
+      (wl:list-remove (cffi:foreign-slot-pointer (toplevel-map toplevel) '(:struct wl:listener) :link))
+      (wl:list-remove (cffi:foreign-slot-pointer (toplevel-unmap toplevel) '(:struct wl:listener) :link))
+      (wl:list-remove (cffi:foreign-slot-pointer (toplevel-commit toplevel) '(:struct wl:listener) :link))
+      (wl:list-remove (cffi:foreign-slot-pointer (toplevel-destroy toplevel) '(:struct wl:listener) :link))
+      (wl:list-remove (cffi:foreign-slot-pointer (toplevel-request-move toplevel) '(:struct wl:listener) :link))
+      (wl:list-remove (cffi:foreign-slot-pointer (toplevel-request-resize toplevel) '(:struct wl:listener) :link))
+      (wl:list-remove (cffi:foreign-slot-pointer (toplevel-request-maximize toplevel) '(:struct wl:listener) :link))
+      (wl:list-remove (cffi:foreign-slot-pointer (toplevel-request-fullscreen toplevel) '(:struct wl:listener) :link)))))
+
+(defun begin-interactive (toplevel mode edges)
+  (setf *grabbed-toplevel* toplevel
+        *cursor-mode* mode)
+  (let* ((node (cffi:foreign-slot-value (toplevel-scene-tree toplevel) '(:struct wlr:scene-tree) :node))
+         (node-x (cffi:foreign-slot-value node '(:struct wlr:scene-node) :x))
+         (node-y (cffi:foreign-slot-value node '(:struct wlr:scene-node) :y)))
+    (if (eq mode :move)
+        (setf *grab-x* (- (cffi:foreign-slot-value *cursor* '(:struct wlr:cursor) :x) node-x)
+              *grab-y* (- (cffi:foreign-slot-value *cursor* '(:struct wlr:cursor) :y) node-y))
+        (let* ((geo-box (cffi:foreign-slot-value
+                         (cffi:foreign-slot-value (toplevel-xdg-toplevel toplevel) '(:struct wlr:xdg-toplevel) :base)
+                         '(:struct wlr:xdg-surface)
+                         :geometry))
+               (border-x (+ node-x
+                            (cffi:foreign-slot-value geo-box '(:struct wlr:box) :x)
+                            (if (logand edges (cffi:foreign-enum-value 'wlr:edges :right))
+                                (cffi:foreign-slot-value geo-box '(:struct wlr:box) :width)
+                                0)))
+               (border-y (+ node-y
+                            (cffi:foreign-slot-value geo-box '(:struct wlr:box) :y)
+                            (if (logand edges (cffi:foreign-enum-value 'wlr:edges :bottom))
+                                (cffi:foreign-slot-value geo-box '(:struct wlr:box) :height)
+                                0))))
+          (setf *grab-x* (- (cffi:foreign-slot-value *cursor* '(:struct wlr:cursor) :x) border-x)
+                *grab-y* (- (cffi:foreign-slot-value *cursor* '(:struct wlr:cursor) :y) border-y)
+                *grab-geobox* geo-box
+                (cffi:foreign-slot-value geo-box '(:struct wlr:box) :x) node-x
+                (cffi:foreign-slot-value geo-box '(:struct wlr:box) :y) node-y
+                *resize-edges* edges)))))
+
+(cffi:defcallback xdg-toplevel-request-move :void ((listener :pointer) (event :pointer))
+  (declare (ignore event))
+  (format t "XDG toplevel requested move~%")
+  (let ((toplevel (find-if (lambda (top) (cffi:pointer-eq (toplevel-request-move top) listener)) *toplevels*)))
+    (when toplevel
+      (begin-interactive toplevel :move 0))))
+
+(cffi:defcallback xdg-toplevel-request-resize :void ((listener :pointer) (event :pointer))
+  (format t "XDG toplevel requested resize~%")
+  (let ((toplevel (find-if (lambda (top) (cffi:pointer-eq (toplevel-request-resize top) listener)) *toplevels*)))
+    (when toplevel
+      (begin-interactive toplevel :resize
+                         (cffi:foreign-slot-value event '(:struct wlr:xdg-toplevel-resize-event) :edges)))))
+
+(cffi:defcallback xdg-toplevel-request-maximize :void ((listener :pointer) (event :pointer))
+  (declare (ignore event))
+  (format t "XDG toplevel requested maximize~%")
+  (let* ((toplevel (find-if (lambda (top) (cffi:pointer-eq (toplevel-request-maximize top) listener)) *toplevels*))
+         (base (cffi:foreign-slot-value (toplevel-xdg-toplevel toplevel) '(:struct wlr:xdg-toplevel) :base)))
+    (when (cffi:foreign-slot-value base '(:struct wlr:xdg-surface) :initialized)
+      (wlr:xdg-surface-schedule-configure base))))
+
+(cffi:defcallback xdg-toplevel-request-fullscreen :void ((listener :pointer) (event :pointer))
+  (declare (ignore event))
+  (format t "XDG toplevel requested fullscreen~%")
+  (let* ((toplevel (find-if (lambda (top) (cffi:pointer-eq (toplevel-request-maximize top) listener)) *toplevels*))
+         (base (cffi:foreign-slot-value (toplevel-xdg-toplevel toplevel) '(:struct wlr:xdg-toplevel) :base)))
+    (when (cffi:foreign-slot-value base '(:struct wlr:xdg-surface) :initialized)
+      (wlr:xdg-surface-schedule-configure base))))
+
+(cffi:defcallback server-new-xdg-toplevel :void ((listener :pointer) (xdg-toplevel :pointer))
+  (declare (ignore listener))
+  (format t "New XDG toplevel created~%")
+  (let* ((base (cffi:foreign-slot-value xdg-toplevel '(:struct wlr:xdg-toplevel) :base))
+         (scene-tree (wlr:scene-xdg-surface-create
+                      (cffi:foreign-slot-pointer *scene* '(:struct wlr:scene) :tree)
+                      base))
+         (surface (cffi:foreign-slot-value base '(:struct wlr:xdg-surface) :surface))
+         (map (cffi:foreign-alloc '(:struct wl:listener)))
+         (unmap (cffi:foreign-alloc '(:struct wl:listener)))
+         (commit (cffi:foreign-alloc '(:struct wl:listener)))
+         (destroy (cffi:foreign-alloc '(:struct wl:listener)))
+         (request-move (cffi:foreign-alloc '(:struct wl:listener)))
+         (request-resize (cffi:foreign-alloc '(:struct wl:listener)))
+         (request-maximize (cffi:foreign-alloc '(:struct wl:listener)))
+         (request-fullscreen (cffi:foreign-alloc '(:struct wl:listener)))
+         (toplevel (make-toplevel :xdg-toplevel xdg-toplevel
+                                  :scene-tree scene-tree
+                                  :map map
+                                  :unmap unmap
+                                  :commit commit
+                                  :destroy destroy
+                                  :request-move request-move
+                                  :request-resize request-resize
+                                  :request-maximize request-maximize
+                                  :request-fullscreen request-fullscreen)))
+    (setf (cffi:foreign-slot-value base '(:struct wlr:xdg-surface) :data) scene-tree)
+    (setf (cffi:foreign-slot-value map '(:struct wl:listener) :notify)
+          (cffi:callback xdg-toplevel-map)
+          (cffi:foreign-slot-value unmap '(:struct wl:listener) :notify)
+          (cffi:callback xdg-toplevel-unmap)
+          (cffi:foreign-slot-value commit '(:struct wl:listener) :notify)
+          (cffi:callback xdg-toplevel-commit)
+          (cffi:foreign-slot-value destroy '(:struct wl:listener) :notify)
+          (cffi:callback xdg-toplevel-destroy)
+          (cffi:foreign-slot-value request-move '(:struct wl:listener) :notify)
+          (cffi:callback xdg-toplevel-request-move)
+          (cffi:foreign-slot-value request-resize '(:struct wl:listener) :notify)
+          (cffi:callback xdg-toplevel-request-resize)
+          (cffi:foreign-slot-value request-maximize '(:struct wl:listener) :notify)
+          (cffi:callback xdg-toplevel-request-maximize)
+          (cffi:foreign-slot-value request-fullscreen '(:struct wl:listener) :notify)
+          (cffi:callback xdg-toplevel-request-fullscreen))
+    (wl:signal-add (wlr:event-signal surface wlr:surface :map) map)
+    (wl:signal-add (wlr:event-signal surface wlr:surface :unmap) unmap)
+    (wl:signal-add (wlr:event-signal surface wlr:surface :commit) commit)
+    (wl:signal-add (wlr:event-signal xdg-toplevel wlr:xdg-toplevel :destroy) destroy)
+    (wl:signal-add (wlr:event-signal xdg-toplevel wlr:xdg-toplevel :request-move) request-move)
+    (wl:signal-add (wlr:event-signal xdg-toplevel wlr:xdg-toplevel :request-resize) request-resize)
+    (wl:signal-add (wlr:event-signal xdg-toplevel wlr:xdg-toplevel :request-maximize) request-maximize)
+    (wl:signal-add (wlr:event-signal xdg-toplevel wlr:xdg-toplevel :request-fullscreen) request-fullscreen)
+    (push toplevel *toplevels*)))
 
 (cffi:defcallback server-new-xdg-popup :void ((listener :pointer) (data :pointer))
   (declare (ignore listener data))
   (format t "New XDG popup created~%"))
 
-(defun main ()
+(defun main (&optional startup-cmd)
   (setf *display* (wl:display-create))
   (when (cffi:null-pointer-p *display*)
     (error "Failed to create Wayland display"))
@@ -333,10 +502,10 @@
         (cffi:callback server-new-output))
   (wl:signal-add (wlr:event-signal *backend* wlr:backend :new-output)
                  *new-output-listener*)
-  
+
   (setf *scene* (wlr:scene-create))
   (setf *scene-layout* (wlr:scene-attach-output-layout *scene* *output-layout*))
-  
+
   (setf *xdg-shell* (wlr:xdg-shell-create *display* 3))
   (setf *new-xdg-toplevel* (cffi:foreign-alloc '(:struct wl:listener))
         *new-xdg-popup* (cffi:foreign-alloc '(:struct wl:listener)))
@@ -368,16 +537,16 @@
         (cffi:callback server-cursor-axis)
         (cffi:foreign-slot-value *cursor-frame* '(:struct wl:listener) :notify)
         (cffi:callback server-cursor-frame))
-    (wl:signal-add (wlr:event-signal *cursor* wlr:cursor :motion)
-                   *cursor-motion*)
-    (wl:signal-add (wlr:event-signal *cursor* wlr:cursor :motion-absolute)
-                   *cursor-motion-absolute*)
-    (wl:signal-add (wlr:event-signal *cursor* wlr:cursor :button)
-                   *cursor-button*)
-    (wl:signal-add (wlr:event-signal *cursor* wlr:cursor :axis)
-                   *cursor-axis*)
-    (wl:signal-add (wlr:event-signal *cursor* wlr:cursor :frame)
-                   *cursor-frame*)
+  (wl:signal-add (wlr:event-signal *cursor* wlr:cursor :motion)
+                 *cursor-motion*)
+  (wl:signal-add (wlr:event-signal *cursor* wlr:cursor :motion-absolute)
+                 *cursor-motion-absolute*)
+  (wl:signal-add (wlr:event-signal *cursor* wlr:cursor :button)
+                 *cursor-button*)
+  (wl:signal-add (wlr:event-signal *cursor* wlr:cursor :axis)
+                 *cursor-axis*)
+  (wl:signal-add (wlr:event-signal *cursor* wlr:cursor :frame)
+                 *cursor-frame*)
 
   (setf *new-input-listener* (cffi:foreign-alloc '(:struct wl:listener)))
   (setf (cffi:foreign-slot-value *new-input-listener* '(:struct wl:listener) :notify)
@@ -403,9 +572,13 @@
 
     (unless (wlr:backend-start *backend*)
       (error "Failed to start backend"))
-    
+
     (sb-posix:setenv "WAYLAND_DISPLAY" socket 1)
     (format t "Running Wayland compositor on WAYLAND_DISPLAY=~A~%" socket)
+    (when startup-cmd
+      (format t "Running startup command: ~a~%" startup-cmd)
+      (uiop:launch-program (list "/bin/sh" "-c" startup-cmd)))
+    (format t "Entering main event loop~%")
     (wl:display-run *display*))
 
   (wl:list-remove (cffi:foreign-slot-pointer *new-output-listener* '(:struct wl:listener) :link))
@@ -419,12 +592,12 @@
   (wl:list-remove (cffi:foreign-slot-pointer *new-input-listener* '(:struct wl:listener) :link))
   (wl:list-remove (cffi:foreign-slot-pointer *request-set-cursor-listener* '(:struct wl:listener) :link))
   (wl:list-remove (cffi:foreign-slot-pointer *request-set-selection-listener* '(:struct wl:listener) :link))
-  
+
   (wl:display-destroy-clients *display*)
   (wlr:scene-node-destroy (cffi:foreign-slot-pointer
-                            (cffi:foreign-slot-pointer *scene* '(:struct wlr:scene) :tree)
-                             '(:struct wlr:scene-tree)
-                             :node))
+                           (cffi:foreign-slot-pointer *scene* '(:struct wlr:scene) :tree)
+                           '(:struct wlr:scene-tree)
+                           :node))
   (wlr:xcursor-manager-destroy *cursor-manager*)
   (wlr:cursor-destroy *cursor*)
   (wlr:allocator-destroy *allocator*)
