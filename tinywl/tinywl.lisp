@@ -41,6 +41,9 @@
 (defstruct toplevel xdg-toplevel scene-tree map unmap commit destroy
                     request-move request-resize request-maximize request-fullscreen)
 
+(defvar *popups* nil)
+(defstruct popup xdg-popup commit destroy)
+
 (defvar *outputs* nil)
 (defstruct output wlr-output frame request-state destroy)
 
@@ -473,9 +476,49 @@
     (wl:signal-add (wlr:event-signal xdg-toplevel wlr:xdg-toplevel :request-fullscreen) request-fullscreen)
     (push toplevel *toplevels*)))
 
-(cffi:defcallback server-new-xdg-popup :void ((listener :pointer) (data :pointer))
-  (declare (ignore listener data))
-  (format t "New XDG popup created~%"))
+(cffi:defcallback xdg-popup-commit :void ((listener :pointer) (data :pointer))
+  (declare (ignore data))
+  (format t "XDG popup committed~%")
+  (let ((popup (find-if (lambda (p) (cffi:pointer-eq (popup-commit p) listener)) *popups*)))
+    (when popup
+      (let* ((base (cffi:foreign-slot-value (popup-xdg-popup popup) '(:struct wlr:xdg-popup) :base)))
+        (when (cffi:foreign-slot-value base '(:struct wlr:xdg-surface) :initial-commit)
+          (wlr:xdg-surface-schedule-configure base))))))
+
+(cffi:defcallback xdg-popup-destroy :void ((listener :pointer) (data :pointer))
+  (declare (ignore data))
+  (format t "XDG popup destroyed~%")
+  (let* ((popup (find-if (lambda (p) (cffi:pointer-eq (popup-destroy p) listener)) *popups*)))
+    (when popup
+      (setf *popups* (remove popup *popups*))
+      (wl:list-remove (cffi:foreign-slot-pointer (popup-commit popup) '(:struct wl:listener) :link))
+      (wl:list-remove (cffi:foreign-slot-pointer (popup-destroy popup) '(:struct wl:listener) :link)))))
+
+(cffi:defcallback server-new-xdg-popup :void ((listener :pointer) (xdg-popup :pointer))
+  (declare (ignore listener))
+  (format t "New XDG popup created~%")
+  (let ((parent (wlr:xdg-surface-try-from-wlr-surface
+                 (cffi:foreign-slot-value xdg-popup '(:struct wlr:xdg-popup) :parent))))
+    (assert (not (cffi:null-pointer-p parent)))
+    (let* ((parent-tree (cffi:foreign-slot-value parent '(:struct wlr:xdg-surface) :data))
+           (base (cffi:foreign-slot-value xdg-popup '(:struct wlr:xdg-popup) :base))
+           (commit (cffi:foreign-alloc '(:struct wl:listener)))
+           (destroy (cffi:foreign-alloc '(:struct wl:listener)))
+           (popup (make-popup :xdg-popup xdg-popup
+                              :commit commit
+                              :destroy destroy)))
+      (setf (cffi:foreign-slot-value base '(:struct wlr:xdg-surface) :data)
+            (wlr:scene-xdg-surface-create parent-tree base))
+      (setf (cffi:foreign-slot-value commit '(:struct wl:listener) :notify)
+            (cffi:callback server-commit-xdg-popup)
+            (cffi:foreign-slot-value destroy '(:struct wl:listener) :notify)
+            (cffi:callback server-destroy-xdg-popup))
+      (wl:signal-add (wlr:event-signal (cffi:foreign-slot-value base '(:struct wlr:xdg-surface) :surface)
+                                       wlr:surface
+                                       :commit)
+                     commit)
+      (wl:signal-add (wlr:event-signal xdg-popup wlr:xdg-popup :destroy) destroy)
+      (push popup *popups*))))
 
 (defun main (&optional startup-cmd)
   (setf *display* (wl:display-create))
