@@ -48,6 +48,7 @@
 (defstruct output wlr-output frame request-state destroy)
 
 (defun focus-toplevel (toplevel)
+  (format t "Focusing toplevel ~a~%" toplevel)
   (when toplevel
     (let ((prev-surface (cffi:foreign-slot-value
                          (cffi:foreign-slot-pointer *seat* '(:struct wlr:seat) :keyboard-state)
@@ -60,8 +61,10 @@
       (unless (cffi:pointer-eq prev-surface surface)
         (unless (cffi:null-pointer-p prev-surface)
           (let ((prev-toplevel (wlr:xdg-toplevel-try-from-wlr-surface prev-surface)))
-            (when prev-toplevel
+            (unless (cffi:null-pointer-p prev-toplevel)
               (wlr:xdg-toplevel-set-activated prev-toplevel nil))))
+        ;; Move the toplevel to the front of the list
+        (setf *toplevels* (cons toplevel (remove toplevel *toplevels*)))
         (wlr:scene-node-raise-to-top (cffi:foreign-slot-pointer (toplevel-scene-tree toplevel)
                                                                 '(:struct wlr:scene-tree)
                                                                 :node))
@@ -158,6 +161,7 @@
                    key)
     (wl:signal-add (wlr:event-signal device wlr:input-device :destroy)
                    destroy)
+    (wlr:seat-set-keyboard *seat* wlr-keyboard)
     (push kb *keyboards*)))
 
 (defun server-new-pointer (device)
@@ -174,17 +178,32 @@
        (format t "New pointer input device~%")
        (server-new-pointer data)))
     (let ((caps (cffi:foreign-enum-value 'wl:seat-capability :pointer)))
-      (unless *keyboards*
+      (when *keyboards*
         (setf caps (logior caps (cffi:foreign-enum-value 'wl:seat-capability :keyboard))))
       (wlr:seat-set-capabilities *seat* caps))))
 
 (cffi:defcallback seat-request-set-cursor :void ((listener :pointer) (data :pointer))
-  (declare (ignore listener data))
-  (format t "Seat requested set cursor~%"))
+  (declare (ignore listener))
+  (format t "Seat requested set cursor~%")
+  (let* ((event data)
+         (focused-client (cffi:foreign-slot-value
+                          (cffi:foreign-slot-pointer *seat* '(:struct wlr:seat) :pointer-state)
+                          '(:struct wlr:seat-pointer-state)
+                          :focused-client)))
+    (when (cffi:pointer-eq focused-client
+                          (cffi:foreign-slot-value event '(:struct wlr:seat-pointer-request-set-cursor-event) :seat-client))
+      (wlr:cursor-set-surface *cursor*
+                              (cffi:foreign-slot-value event '(:struct wlr:seat-pointer-request-set-cursor-event) :surface)
+                              (cffi:foreign-slot-value event '(:struct wlr:seat-pointer-request-set-cursor-event) :hotspot-x)
+                              (cffi:foreign-slot-value event '(:struct wlr:seat-pointer-request-set-cursor-event) :hotspot-y)))))
 
 (cffi:defcallback seat-request-set-selection :void ((listener :pointer) (data :pointer))
-  (declare (ignore listener data))
-  (format t "Seat requested set selection~%"))
+  (declare (ignore listener))
+  (format t "Seat requested set selection~%")
+  (let ((event data))
+    (wlr:seat-set-selection *seat*
+                            (cffi:foreign-slot-value event '(:struct wlr:seat-request-set-selection-event) :source)
+                            (cffi:foreign-slot-value event '(:struct wlr:seat-request-set-selection-event) :serial))))
 
 (defun desktop-toplevel-at (lx ly sx sy)
   (let ((node (wlr:scene-node-at (cffi:foreign-slot-pointer (cffi:foreign-slot-pointer *scene* '(:struct wlr:scene) :tree)
@@ -194,17 +213,17 @@
     (when (or (cffi:null-pointer-p node)
               (cffi:with-foreign-slots (((type :type)) node (:struct wlr:scene-node))
                 (not (eql type (cffi:foreign-enum-value 'wlr:scene-node-type :buffer)))))
-      (return-from desktop-toplevel-at (cffi:null-pointer)))
+      (return-from desktop-toplevel-at (values (cffi:null-pointer) (cffi:null-pointer))))
     (let* ((scene-buffer (wlr:scene-buffer-from-node node))
            (scene-surface (wlr:scene-surface-try-from-buffer scene-buffer)))
       (when (cffi:null-pointer-p scene-surface)
-        (return-from desktop-toplevel-at (cffi:null-pointer)))
+        (return-from desktop-toplevel-at (values (cffi:null-pointer) (cffi:null-pointer))))
       (let ((tree (cffi:foreign-slot-pointer node '(:struct wlr:scene-node) :parent)))
         (loop while (and (not (cffi:null-pointer-p tree))
-                         (not (cffi:null-pointer-p 
-                               (cffi:foreign-slot-pointer (cffi:foreign-slot-pointer tree '(:struct wlr:scene-tree) :node)
-                                                          '(:struct wlr:scene-node)
-                                                          :data))))
+                         (cffi:null-pointer-p
+                          (cffi:foreign-slot-pointer (cffi:foreign-slot-pointer tree '(:struct wlr:scene-tree) :node)
+                                                     '(:struct wlr:scene-node)
+                                                     :data)))
               do (setf tree (cffi:foreign-slot-pointer (cffi:foreign-slot-pointer tree '(:struct wlr:scene-tree) :node)
                                                        '(:struct wlr:scene-node)
                                                        :parent)))
@@ -214,9 +233,57 @@
                   :data)
                 (cffi:foreign-slot-pointer scene-surface '(:struct wlr:scene-surface) :surface))))))
 
-(defun process-cursor-move ())
+(defun reset-cursor-mode ()
+  (setf *cursor-mode* :passthrough
+        *grabbed-toplevel* nil))
 
-(defun process-cursor-resize ())
+(defun process-cursor-move ()
+  (wlr:scene-node-set-position (cffi:foreign-slot-pointer (toplevel-scene-tree *grabbed-toplevel*)
+                                                        '(:struct wlr:scene-tree)
+                                                        :node)
+                               (- (cffi:foreign-slot-value *cursor* '(:struct wlr:cursor) :x) *grab-x*)
+                               (- (cffi:foreign-slot-value *cursor* '(:struct wlr:cursor) :y) *grab-y*)))
+
+(defun process-cursor-resize ()
+  (let ((border-x (- (cffi:foreign-slot-value *cursor* '(:struct wlr:cursor) :x) *grab-x*))
+        (border-y (- (cffi:foreign-slot-value *cursor* '(:struct wlr:cursor) :y) *grab-y*))
+        (new-left (cffi:foreign-slot-value *grab-geobox* '(:struct wlr:box) :x))
+        (new-right (+ (cffi:foreign-slot-value *grab-geobox* '(:struct wlr:box) :x)
+                      (cffi:foreign-slot-value *grab-geobox* '(:struct wlr:box) :width)))
+        (new-top (cffi:foreign-slot-value *grab-geobox* '(:struct wlr:box) :y))
+        (new-bottom (+ (cffi:foreign-slot-value *grab-geobox* '(:struct wlr:box) :y)
+                       (cffi:foreign-slot-value *grab-geobox* '(:struct wlr:box) :height))))
+    (if (logand *resize-edges* (cffi:foreign-enum-value 'wlr:edges :top))
+      (progn (setf new-top border-y)
+             (when (>= new-top new-bottom)
+               (setf new-top (- new-bottom 1))))
+      (when (logand *resize-edges* (cffi:foreign-enum-value 'wlr:edges :bottom))
+        (setf new-bottom border-y)
+        (when (< new-bottom new-top)
+          (setf new-bottom (+ new-top 1)))))
+    (if (logand *resize-edges* (cffi:foreign-enum-value 'wlr:edges :left))
+      (progn (setf new-left border-x)
+             (when (>= new-left new-right)
+               (setf new-left (- new-right 1))))
+      (when (logand *resize-edges* (cffi:foreign-enum-value 'wlr:edges :right))
+        (setf new-right border-x)
+        (when (< new-right new-left)
+          (setf new-right (+ new-left 1)))))
+    
+    (let ((geo-box (cffi:foreign-slot-value 
+                     (cffi:foreign-slot-value (toplevel-xdg-toplevel *grabbed-toplevel*)
+                                              '(:struct wlr:xdg-toplevel)
+                                              :base)
+                     '(:struct wlr:xdg-surface)
+                     :geometry))
+          (new-width (- new-right new-left))
+          (new-height (- new-bottom new-top)))
+      (wlr:scene-node-set-position (cffi:foreign-slot-pointer (toplevel-scene-tree *grabbed-toplevel*)
+                                                            '(:struct wlr:scene-tree)
+                                                            :node)
+                                   (- new-left (cffi:foreign-slot-value geo-box '(:struct wlr:box) :x))
+                                   (- new-top (cffi:foreign-slot-value geo-box '(:struct wlr:box) :y)))
+      (wlr:xdg-toplevel-set-size (toplevel-xdg-toplevel *grabbed-toplevel*) new-width new-height))))
 
 (defun process-cursor-motion (time)
   (case *cursor-mode*
@@ -233,30 +300,78 @@
           (wlr:cursor-set-xcursor *cursor* *cursor-manager* "default"))
         (if (cffi:null-pointer-p surface)
           (wlr:seat-pointer-clear-focus *seat*)
-          (progn (wlr:seat-pointer-notify-enter *seat* surface sx sy)
-                 (wlr:seat-pointer-notify-motion *seat* time sx sy))))))
+          (progn (wlr:seat-pointer-notify-enter *seat* surface
+                                                 (cffi:mem-ref sx :double)
+                                                 (cffi:mem-ref sy :double))
+                 (wlr:seat-pointer-notify-motion *seat* time
+                                                  (cffi:mem-ref sx :double)
+                                                  (cffi:mem-ref sy :double)))))))
     (:move (process-cursor-move))
     (:resize (process-cursor-resize))))
 
 (cffi:defcallback server-cursor-motion :void ((listener :pointer) (data :pointer))
-  (declare (ignore listener data))
-  (format t "Cursor motion event~%"))
+  (declare (ignore listener))
+  (format t "Cursor motion event~%")
+  (let* ((event data)
+         (pointer (cffi:foreign-slot-value event '(:struct wlr:pointer-motion-event) :pointer))
+         (base (cffi:foreign-slot-pointer pointer '(:struct wlr:pointer) :base)))
+    (wlr:cursor-move *cursor*
+                     base
+                     (cffi:foreign-slot-value event '(:struct wlr:pointer-motion-event) :delta-x)
+                     (cffi:foreign-slot-value event '(:struct wlr:pointer-motion-event) :delta-y))
+    (process-cursor-motion (cffi:foreign-slot-value event '(:struct wlr:pointer-motion-event) :time-msec))))
 
 (cffi:defcallback server-cursor-motion-absolute :void ((listener :pointer) (data :pointer))
-  (declare (ignore listener data))
-  (format t "Cursor absolute motion event~%"))
+  (declare (ignore listener))
+  (format t "Cursor absolute motion event~%")
+  (let* ((event data)
+         (pointer (cffi:foreign-slot-value event '(:struct wlr:pointer-motion-absolute-event) :pointer))
+         (base (cffi:foreign-slot-pointer pointer '(:struct wlr:pointer) :base)))
+    (wlr:cursor-warp-absolute *cursor*
+                              base
+                              (cffi:foreign-slot-value event '(:struct wlr:pointer-motion-absolute-event) :x)
+                              (cffi:foreign-slot-value event '(:struct wlr:pointer-motion-absolute-event) :y))
+    (process-cursor-motion (cffi:foreign-slot-value event '(:struct wlr:pointer-motion-absolute-event) :time-msec))))
 
 (cffi:defcallback server-cursor-button :void ((listener :pointer) (data :pointer))
-  (declare (ignore listener data))
-  (format t "Cursor button event~%"))
+  (declare (ignore listener))
+  (format t "Cursor button event~%")
+  (let ((event data))
+    (wlr:seat-pointer-notify-button *seat*
+                                     (cffi:foreign-slot-value event '(:struct wlr:pointer-button-event) :time-msec)
+                                     (cffi:foreign-slot-value event '(:struct wlr:pointer-button-event) :button)
+                                     (cffi:foreign-slot-value event '(:struct wlr:pointer-button-event) :state))
+    (when (eql (cffi:foreign-slot-value event '(:struct wlr:pointer-button-event) :state)
+               (cffi:foreign-enum-value 'wl:pointer-button-state :released))
+      (reset-cursor-mode))
+    (when (eql (cffi:foreign-slot-value event '(:struct wlr:pointer-button-event) :state)
+               (cffi:foreign-enum-value 'wl:pointer-button-state :pressed))
+      (cffi:with-foreign-objects ((sx :double) (sy :double) (sx-ptr :pointer) (sy-ptr :pointer))
+        (setf (cffi:mem-aref sx-ptr :pointer) sx
+              (cffi:mem-aref sy-ptr :pointer) sy)
+        (let ((toplevel (desktop-toplevel-at (cffi:foreign-slot-value *cursor* '(:struct wlr:cursor) :x)
+                                              (cffi:foreign-slot-value *cursor* '(:struct wlr:cursor) :y)
+                                              sx-ptr
+                                              sy-ptr)))
+          (unless (cffi:null-pointer-p toplevel)
+            (focus-toplevel toplevel)))))))
 
 (cffi:defcallback server-cursor-axis :void ((listener :pointer) (data :pointer))
-  (declare (ignore listener data))
-  (format t "Cursor axis event~%"))
+  (declare (ignore listener))
+  (format t "Cursor axis event~%")
+  (let ((event data))
+    (wlr:seat-pointer-notify-axis *seat*
+                                   (cffi:foreign-slot-value event '(:struct wlr:pointer-axis-event) :time-msec)
+                                   (cffi:foreign-slot-value event '(:struct wlr:pointer-axis-event) :orientation)
+                                   (cffi:foreign-slot-value event '(:struct wlr:pointer-axis-event) :delta)
+                                   (cffi:foreign-slot-value event '(:struct wlr:pointer-axis-event) :delta-discrete)
+                                   (cffi:foreign-slot-value event '(:struct wlr:pointer-axis-event) :source)
+                                   (cffi:foreign-slot-value event '(:struct wlr:pointer-axis-event) :relative-direction))))
 
 (cffi:defcallback server-cursor-frame :void ((listener :pointer) (data :pointer))
   (declare (ignore listener data))
-  (format t "Cursor frame event~%"))
+  (format t "Cursor frame event~%")
+  (wlr:seat-pointer-notify-frame *seat*))
 
 (cffi:defcallback output-frame :void ((listener :pointer) (data :pointer))
   (declare (ignore data))
@@ -333,9 +448,11 @@
   (format t "XDG toplevel unmapped~%")
   (let ((toplevel (find-if (lambda (top) (cffi:pointer-eq (toplevel-unmap top) listener)) *toplevels*)))
     (when toplevel
+      (when (eq toplevel *grabbed-toplevel*)
+        (reset-cursor-mode))
       (when (eq toplevel *focused-toplevel*)
-        (setf *focused-toplevel* nil)
-        (focus-toplevel nil)))))
+        (setf *focused-toplevel* nil))
+      (setf *toplevels* (remove toplevel *toplevels*)))))
 
 (cffi:defcallback xdg-toplevel-commit :void ((listener :pointer) (data :pointer))
   (declare (ignore data))
@@ -353,6 +470,8 @@
   (format t "XDG toplevel destroyed~%")
   (let* ((toplevel (find-if (lambda (top) (cffi:pointer-eq (toplevel-destroy top) listener)) *toplevels*)))
     (when toplevel
+      ;; Note: toplevel should already be removed from *toplevels* in unmap callback
+      ;; Remove it again just to be safe (remove is idempotent)
       (setf *toplevels* (remove toplevel *toplevels*))
       (wl:list-remove (cffi:foreign-slot-pointer (toplevel-map toplevel) '(:struct wl:listener) :link))
       (wl:list-remove (cffi:foreign-slot-pointer (toplevel-unmap toplevel) '(:struct wl:listener) :link))
@@ -387,10 +506,18 @@
                                 (cffi:foreign-slot-value geo-box '(:struct wlr:box) :height)
                                 0))))
           (setf *grab-x* (- (cffi:foreign-slot-value *cursor* '(:struct wlr:cursor) :x) border-x)
-                *grab-y* (- (cffi:foreign-slot-value *cursor* '(:struct wlr:cursor) :y) border-y)
-                *grab-geobox* geo-box
-                (cffi:foreign-slot-value geo-box '(:struct wlr:box) :x) node-x
-                (cffi:foreign-slot-value geo-box '(:struct wlr:box) :y) node-y
+                *grab-y* (- (cffi:foreign-slot-value *cursor* '(:struct wlr:cursor) :y) border-y))
+          ;; Copy the geobox structure instead of using the pointer directly
+          (unless *grab-geobox*
+            (setf *grab-geobox* (cffi:foreign-alloc '(:struct wlr:box))))
+          (setf (cffi:foreign-slot-value *grab-geobox* '(:struct wlr:box) :x)
+                (+ (cffi:foreign-slot-value geo-box '(:struct wlr:box) :x) node-x)
+                (cffi:foreign-slot-value *grab-geobox* '(:struct wlr:box) :y)
+                (+ (cffi:foreign-slot-value geo-box '(:struct wlr:box) :y) node-y)
+                (cffi:foreign-slot-value *grab-geobox* '(:struct wlr:box) :width)
+                (cffi:foreign-slot-value geo-box '(:struct wlr:box) :width)
+                (cffi:foreign-slot-value *grab-geobox* '(:struct wlr:box) :height)
+                (cffi:foreign-slot-value geo-box '(:struct wlr:box) :height)
                 *resize-edges* edges)))))
 
 (cffi:defcallback xdg-toplevel-request-move :void ((listener :pointer) (event :pointer))
@@ -418,7 +545,7 @@
 (cffi:defcallback xdg-toplevel-request-fullscreen :void ((listener :pointer) (event :pointer))
   (declare (ignore event))
   (format t "XDG toplevel requested fullscreen~%")
-  (let* ((toplevel (find-if (lambda (top) (cffi:pointer-eq (toplevel-request-maximize top) listener)) *toplevels*))
+  (let* ((toplevel (find-if (lambda (top) (cffi:pointer-eq (toplevel-request-fullscreen top) listener)) *toplevels*))
          (base (cffi:foreign-slot-value (toplevel-xdg-toplevel toplevel) '(:struct wlr:xdg-toplevel) :base)))
     (when (cffi:foreign-slot-value base '(:struct wlr:xdg-surface) :initialized)
       (wlr:xdg-surface-schedule-configure base))))
@@ -510,9 +637,9 @@
       (setf (cffi:foreign-slot-value base '(:struct wlr:xdg-surface) :data)
             (wlr:scene-xdg-surface-create parent-tree base))
       (setf (cffi:foreign-slot-value commit '(:struct wl:listener) :notify)
-            (cffi:callback server-commit-xdg-popup)
+            (cffi:callback xdg-popup-commit)
             (cffi:foreign-slot-value destroy '(:struct wl:listener) :notify)
-            (cffi:callback server-destroy-xdg-popup))
+            (cffi:callback xdg-popup-destroy))
       (wl:signal-add (wlr:event-signal (cffi:foreign-slot-value base '(:struct wlr:xdg-surface) :surface)
                                        wlr:surface
                                        :commit)
