@@ -1,12 +1,12 @@
 (in-package "WLR")
 
-(defcstruct box
+(define-wlr-struct box
   (:x :int)
   (:y :int)
   (:width :int)
   (:height :int))
 
-(defcstruct fbox
+(define-wlr-struct fbox
   (:x :double)
   (:y :double)
   (:width :double)

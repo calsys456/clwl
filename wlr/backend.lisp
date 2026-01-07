@@ -1,18 +1,18 @@
 (cl:in-package "WLR")
 
-(defcstruct backend-impl)
-(defcstruct session)
+(define-wlr-struct backend-impl)
+(define-wlr-struct session)
 
-(defcstruct backend-output-state
+(define-wlr-struct backend-output-state
   (:output (:pointer (:struct output)))
   (:base (:struct output-state)))
 
-(defcstruct backend-features
+(define-wlr-struct backend-features
   (:timeline :bool))
 
 (define-wlr-events-struct backend destroy new-input new-output)
 
-(defcstruct backend
+(define-wlr-struct backend
   (:impl (:pointer (:struct backend-impl)))
   (:buffer-caps :uint32)
   (:features (:struct backend-features))

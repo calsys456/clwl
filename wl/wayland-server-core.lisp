@@ -1,6 +1,6 @@
 (cl:in-package "WL")
 
-(defcstruct listener)
+(define-wl-struct listener)
 
 (defcenum event
   (:readable 1)
@@ -180,11 +180,11 @@
 (define-wl-func client set-max-buffer-size :void
   (max-buffer-size :unsigned-long-long))
 
-(defcstruct listener
+(define-wl-struct listener
   (:link (:struct list))
   (:notify :pointer))
 
-(defcstruct signal
+(define-wl-struct signal
   (:listener-list (:struct list)))
 
 (cl:defmacro signal-init (signal)
@@ -197,15 +197,15 @@
                 (foreign-slot-pointer ,listener '(:struct listener) :link)))
 
 (cl:defmacro signal-get (signal notify-func)
-  `(do-wl-list ((foreign-slot-pointer ,signal '(:struct signal) :listener-list)
-                link listener)
-     (when (eq (foreign-slot-pointer elm '(:struct listener) :notify) ,notify-func)
-       (return elm))))
+  `(dolist ((foreign-slot-pointer ,signal '(:struct signal) :listener-list)
+            link listener)
+     (cl:when (cl:eq (foreign-slot-pointer elm '(:struct listener) :notify) ,notify-func)
+       (cl:return elm))))
 
 (cl:defmacro signal-emit (signal data)
-  `(let ((lst (foreign-slot-pointer ,signal '(:struct signal) :listener-list)))
-     (do-wl-list (lst link listener)
-        (funcall (foreign-slot-pointer elm '(:struct listener) :notify) ,data))))
+  `(dolist ((foreign-slot-pointer ,signal '(:struct signal) :listener-list)
+            link listener)
+     (cl:funcall (foreign-slot-pointer elm '(:struct listener) :notify) ,data)))
 
 (cl:export '(listener signal signal-init signal-add signal-get signal-emit))
 

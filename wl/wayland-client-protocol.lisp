@@ -30,7 +30,7 @@
   (:implementation 3))
 (cl:export 'display-error)
 
-(defcstruct display-listener
+(define-wl-struct display-listener
   (:error :pointer)
   (:delete-id :pointer))
 (cl:export 'display-listener)
@@ -56,7 +56,7 @@
                        (proxy-get-version display) 0
                        :pointer (null-pointer)))
 
-(defcstruct registry-listener
+(define-wl-struct registry-listener
   (:global :pointer)
   (:global-remove :pointer))
 
@@ -79,7 +79,7 @@
                        :uint32 version
                        :pointer (null-pointer)))
 
-(defcstruct callback-listener
+(define-wl-struct callback-listener
   (:done :pointer))
 
 (define-wl-proxy-func callback add-listener listener data)
@@ -272,7 +272,7 @@
   (:xvuy8888 #x59555658)
   (:p030 #x30333050))
 
-(defcstruct shm-listener
+(define-wl-struct shm-listener
   (:format :pointer))
 
 (define-wl-proxy-func shm add-listener listener data)
@@ -296,7 +296,7 @@
   (proxy-marshal-flags shm *shm-release* (null-pointer)
                        (proxy-get-version shm) *marshal-flag-destroy*))
 
-(defcstruct buffer-listener
+(define-wl-struct buffer-listener
   (:release :pointer))
 
 (define-wl-proxy-func buffer add-listener listener data)
@@ -319,7 +319,7 @@
   (:invalid-action 2)
   (:invalid-offer 3))
 
-(defcstruct data-offer-listener
+(define-wl-struct data-offer-listener
   (:offer :pointer)
   (:source-actions :pointer)
   (:action :pointer))
@@ -373,7 +373,7 @@
   (:invalid-action-mask 0)
   (:invalid-source 1))
 
-(defcstruct data-source-listener
+(define-wl-struct data-source-listener
   (:target :pointer)
   (:send :pointer)
   (:cancelled :pointer)
@@ -411,7 +411,7 @@
   (:role 0)
   (:used-source 1))
 
-(defcstruct data-device-listener
+(define-wl-struct data-device-listener
   (:data-offer :pointer)
   (:enter :pointer)
   (:leave :pointer)
@@ -518,7 +518,7 @@
   (:driver 2)
   (:fill 3))
 
-(defcstruct shell-surface-listener
+(define-wl-struct shell-surface-listener
   (:ping :pointer)
   (:configure :pointer)
   (:popup-done :pointer))
@@ -613,7 +613,7 @@
   (:invalid-offset 3)
   (:defunct-role-object 4))
 
-(defcstruct surface-listener
+(define-wl-struct surface-listener
   (:enter :pointer)
   (:leave :pointer)
   (:preferred-buffer-scale :pointer)
@@ -709,7 +709,7 @@
 (defcenum seat-error
   (:missing-capability 0))
 
-(defcstruct seat-listener
+(define-wl-struct seat-listener
   (:capabilities :pointer)
   (:name :pointer))
 
@@ -768,7 +768,7 @@
   (:identical 0)
   (:inverted 1))
 
-(defcstruct pointer-listener
+(define-wl-struct pointer-listener
   (:enter :pointer)
   (:leave :pointer)
   (:motion :pointer)
@@ -814,7 +814,7 @@
   (:released 0)
   (:pressed 1))
 
-(defcstruct keyboard-listener
+(define-wl-struct keyboard-listener
   (:keymap :pointer)
   (:enter :pointer)
   (:leave :pointer)
@@ -838,7 +838,7 @@
   (proxy-marshal-flags keyboard *keyboard-release* (null-pointer)
                        (proxy-get-version keyboard) *marshal-flag-destroy*))
 
-(defcstruct touch-listener
+(define-wl-struct touch-listener
   (:down :pointer)
   (:up :pointer)
   (:motion :pointer)
@@ -885,7 +885,7 @@
   (:current #x1)
   (:preferred #x2))
 
-(defcstruct output-listener
+(define-wl-struct output-listener
   (:geometry :pointer)
   (:mode :pointer)
   (:done :pointer)

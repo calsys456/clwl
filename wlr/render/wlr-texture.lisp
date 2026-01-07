@@ -1,15 +1,15 @@
 (in-package "WLR")
 
-(defcstruct buffer)
-(defcstruct renderer)
+(define-wlr-struct buffer)
+(define-wlr-struct renderer)
 
-(defcstruct texture
+(define-wlr-struct texture
   (:impl :pointer)
   (:width :uint32)
   (:height :uint32)
   (:renderer (:pointer (:struct renderer))))
 
-(defcstruct texture-read-pixels-options
+(define-wlr-struct texture-read-pixels-options
   (:data :pointer)
   (:format :uint32)
   (:stride :uint32)

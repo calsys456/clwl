@@ -2,20 +2,20 @@
 
 (define-wlr-events-struct renderer destroy lost)
 
-(defcstruct renderer-features
+(define-wlr-struct renderer-features
   (:output-color-transform :bool)
   (:timeline :bool))
 
-(defcstruct renderer-private
+(define-wlr-struct renderer-private
   (:impl :pointer))
 
-(defcstruct renderer
+(define-wlr-struct renderer
   (:render-buffer-caps :uint32)
   (:events (:struct renderer-events))
   (:features (:struct renderer-features))
   (:private (:struct renderer-private)))
 
-(defcstruct render-timer)
+(define-wlr-struct render-timer)
 
 (export '(renderer-features renderer-private renderer))
 

@@ -7,7 +7,7 @@
   :64-27
   :256-135)
 
-(defcstruct output-mode
+(define-wlr-struct output-mode
   (:width :int32)
   (:height :int32)
   (:refresh :int32)
@@ -17,7 +17,7 @@
 
 (define-wlr-private-listener output-cursor renderer-destroy)
 
-(defcstruct output-cursor
+(define-wlr-struct output-cursor
   (:output :pointer)
   (:x :double)
   (:y :double)
@@ -57,12 +57,12 @@
   :fixed
   :custom)
 
-(defcstruct output-state-custom-mode
+(define-wlr-struct output-state-custom-mode
   (:width :int32)
   (:height :int32)
   (:refresh :int32))
 
-(defcstruct output-state
+(define-wlr-struct output-state
   (:committed :uint32)
   (:allow-reconfiguration :bool)
   (:damage (:struct wl-util:pixman-region32))
@@ -108,7 +108,7 @@
 
 (define-wlr-private-listener output display-destroy)
 
-(defcstruct output
+(define-wlr-struct output
   (:impl :pointer)
   (:backend :pointer)
   (:event-loop :pointer)
@@ -171,16 +171,16 @@
 
   (:private (:struct output-private)))
 
-(defcstruct output-event-damage
+(define-wlr-struct output-event-damage
   (:output :pointer)
   (:damage :pointer))
 
-(defcstruct output-event-precommit
+(define-wlr-struct output-event-precommit
   (:output :pointer)
   (:timespec :pointer)
   (:state :pointer))
 
-(defcstruct output-event-commit
+(define-wlr-struct output-event-commit
   (:output :pointer)
   (:timespec :pointer)
   (:state :pointer))
@@ -191,11 +191,11 @@
   (:hw-completion 4)
   (:zero-copy 8))
 
-(defcstruct timespec
+(define-wlr-struct timespec
   (:tv-sec :long)
   (:tv-nsec :long))
 
-(defcstruct output-event-present
+(define-wlr-struct output-event-present
   (:output :pointer)
   (:commit-seq :uint32)
   (:presented :bool)
@@ -204,11 +204,11 @@
   (:refresh :int)
   (:flags :uint32))
 
-(defcstruct output-event-bind
+(define-wlr-struct output-event-bind
   (:output :pointer)
   (:resource :pointer))
 
-(defcstruct output-event-request-state
+(define-wlr-struct output-event-request-state
   (:output :pointer)
   (:state :pointer))
 

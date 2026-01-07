@@ -15,7 +15,7 @@
   (:logo 64)
   (:mod5 128))
 
-(defcstruct keyboard-modifiers
+(define-wlr-struct keyboard-modifiers
   (:depressed :uint32)
   (:latched :uint32)
   (:locked :uint32)
@@ -27,7 +27,7 @@
   keymap
   repeat-info)
 
-(defcstruct keyboard
+(define-wlr-struct keyboard
   (:base (:struct input-device))
   (:impl :pointer)
   (:group :pointer)
@@ -47,7 +47,7 @@
   (:events (:struct keyboard-events))
   (:data :pointer))
 
-(defcstruct keyboard-key-event
+(define-wlr-struct keyboard-key-event
   (:time-msec :uint32)
   (:keycode :uint32)
   (:update-state :bool)

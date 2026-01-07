@@ -12,14 +12,14 @@
   (:viewport 256)
   (:offset 512))
 
-(defcstruct surface-state-viewport
+(define-wlr-struct surface-state-viewport
   (:has-src :bool)
   (:has-dst :bool)
   (:src (:struct fbox))
   (:dst-width :int)
   (:dst-height :int))
 
-(defcstruct surface-state
+(define-wlr-struct surface-state
   (:committed :uint32)
   (:seq :uint32)
   (:buffer :pointer)
@@ -43,7 +43,7 @@
   (:cached-state-link (:struct wl:list))
   (:synced (:struct wl:array)))
 
-(defcstruct surface-role
+(define-wlr-struct surface-role
   (:name :string)
   (:no-object :bool)
   (:client-commit :pointer)
@@ -54,7 +54,7 @@
 
 (define-wlr-private-listener surface-output bind destroy)
 
-(defcstruct surface-output
+(define-wlr-struct surface-output
   (:surface :pointer)
   (:output :pointer)
   (:link (:struct wl:list))
@@ -68,7 +68,7 @@
   new-subsurface
   destroy)
 
-(defcstruct surface-private-previous
+(define-wlr-struct surface-private-previous
   (:scale :int32)
   (:transform :int)
   (:width :int)
@@ -76,7 +76,7 @@
   (:buffer-width :int)
   (:buffer-height :int))
 
-(defcstruct surface-private
+(define-wlr-struct surface-private
   (:role-resource-destroy (:struct wl:listener))
   (:previous (:struct surface-private-previous))
   (:unmap-commit :bool)
@@ -91,7 +91,7 @@
   (:pending-buffer-resource :pointer)
   (:pending-buffer-resource-destroy (:struct wl:listener)))
 
-(defcstruct surface
+(define-wlr-struct surface
   (:resource :pointer)
   (:compositor :pointer)
   (:buffer :pointer)
@@ -110,14 +110,14 @@
   (:data :pointer)
   (:private (:struct surface-private)))
 
-(defcstruct surface-synced-impl
+(define-wlr-struct surface-synced-impl
   (:state-size :size)
   (:init-state :pointer)
   (:finish-state :pointer)
   (:move-state :pointer)
   (:commit :pointer))
 
-(defcstruct surface-synced
+(define-wlr-struct surface-synced
   (:surface :pointer)
   (:impl :pointer)
   (:link (:struct wl:list))
@@ -129,7 +129,7 @@
 
 (define-wlr-private-listener compositor display-destroy renderer-destroy)
 
-(defcstruct compositor
+(define-wlr-struct compositor
   (:global :pointer)
   (:renderer :pointer)
   (:events (:struct compositor-events))

@@ -4,14 +4,14 @@
   (make-pointer (cl:- (pointer-address ptr) (foreign-slot-offset type member))))
 (cl:export 'container-of)
 
-(defcstruct interface)
+(define-wl-struct interface)
 
-(defcstruct message
+(define-wl-struct message
   (:name :string)
   (:signature :string)
   (:types (:pointer (:pointer (:struct interface)))))
 
-(defcstruct interface
+(define-wl-struct interface
   (:name :string)
   (:version :int)
   (:method-count :int)
@@ -22,8 +22,7 @@
 (defcstruct list
   (:prev (:pointer (:struct list)))
   (:next (:pointer (:struct list))))
-
-(cl:export '(message interface list))
+(cl:export 'list)
 
 (define-wl-func list init :void)
 
@@ -49,33 +48,33 @@
 
 (cl:defmacro dolist ((head member item-type) cl:&body body)
   `(let ((lst ,head))
-     (loop for elm = (list-next lst ,member ,(:struct item-type))
-           then (list-next elm ,member ,(:struct item-type))
+     (loop for elm = (list-next lst ,member (:struct ,item-type))
+           then (list-next elm ,member (:struct ,item-type))
            while (not (eq elm lst))
            do ,@body)))
 
 (cl:defmacro dolist-safe ((head member item-type) cl:&body body)
   `(let ((lst ,head))
-     (loop for elm = (list-next lst ,member ,(:struct item-type))
-           then (list-next elm ,member ,(:struct item-type))
+     (loop for elm = (list-next lst ,member (:struct ,item-type))
+           then (list-next elm ,member (:struct ,item-type))
            while (not (eq elm lst))
-           do (let ((next (list-next elm ,member ,(:struct item-type))))
+           do (let ((next (list-next elm ,member (:struct ,item-type))))
                 ,@body
                 (setf elm next)))))
 
 (cl:defmacro dolist-reverse ((head member item-type) cl:&body body)
   `(let ((lst ,head))
-     (loop for elm = (list-prev lst ,member ,(:struct item-type))
-           then (list-prev elm ,member ,(:struct item-type))
+     (loop for elm = (list-prev lst ,member (:struct ,item-type))
+           then (list-prev elm ,member (:struct ,item-type))
            while (not (eq elm lst))
            do ,@body)))
 
 (cl:defmacro dolist-reverse-safe ((head member item-type) cl:&body body)
   `(let ((lst ,head))
-     (loop for elm = (list-prev lst ,member ,(:struct item-type))
-           then (list-prev elm ,member ,(:struct item-type))
+     (loop for elm = (list-prev lst ,member (:struct ,item-type))
+           then (list-prev elm ,member (:struct ,item-type))
            while (not (eq elm lst))
-           do (let ((prev (list-prev elm ,member ,(:struct item-type))))
+           do (let ((prev (list-prev elm ,member (:struct ,item-type))))
                 ,@body
                 (setf elm prev)))))
 
@@ -94,11 +93,10 @@
              do-wl-list-safe do-wl-list-reverse
              do-wl-list-reverse-safe doarray))
 
-(defcstruct array
+(define-wl-struct array
   (:size :uint32)
   (:alloc :uint32)
   (:data :pointer))
-(cl:export 'array)
 
 (define-wl-func array init :void)
 

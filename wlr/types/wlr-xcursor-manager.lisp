@@ -1,11 +1,11 @@
 (in-package "WLR")
 
-(defcstruct xcursor-manager-theme
+(define-wlr-struct xcursor-manager-theme
   (:scale :float)
   (:theme :pointer)
   (:link (:struct wl:list)))
 
-(defcstruct xcursor-manager
+(define-wlr-struct xcursor-manager
   (:name :string)
   (:size :uint32)
   (:scaled-themes (:struct wl:list)))

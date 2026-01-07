@@ -8,14 +8,45 @@
 
 (use-foreign-library libwlroots)
 
+(defmacro define-wlr-struct (name-and-options &body fields)
+  (let ((name (if (listp name-and-options)
+                  (first name-and-options)
+                  name-and-options)))
+    `(eval-when (:compile-toplevel :load-toplevel :execute)
+       (defcstruct ,name-and-options ,@fields)
+       (export ',name)
+       ,@(loop for field in fields
+               for field-name = (first field)
+               for accessor-name = (intern (concatenate 'string
+                                                        (symbol-name name)
+                                                        "-"
+                                                        (symbol-name field-name))
+                                           "WLR")
+               collect `(defmacro ,accessor-name (obj)
+                          (list ',(if (and (atom (second field))
+                                           (not (member (second field) '(:pointer))))
+                                      'foreign-slot-value
+                                      'foreign-slot-pointer)
+                                obj ''(:struct ,name) ',field-name))
+               collect `(define-setf-expander ,accessor-name (x &environment env)
+                          (multiple-value-bind (dummies vals newval setter getter)
+                              (get-setf-expansion x env)
+                            (declare (ignore newval setter))
+                            (let ((store (gensym)))
+                              (values dummies
+                                      vals
+                                      `(,store)
+                                      (list 'setf (list 'foreign-slot-value getter ''(:struct ,name) ',field-name) store)
+                                      (list ',accessor-name getter)))))
+               collect `(export ',accessor-name)))))
+
 (defmacro define-wlr-events-struct (name &body signals)
   (let ((struct-name (intern (concatenate 'string (symbol-name name) "-EVENTS") "WLR")))
     `(eval-when (:compile-toplevel :load-toplevel :execute)
-       (defcstruct ,struct-name
+       (define-wlr-struct ,struct-name
          ,@(loop for signal in signals
                  collect `(,(cl:intern (cl:symbol-name signal) "KEYWORD")
-                            (:struct wl:signal))))
-       (export ',struct-name))))
+                            (:struct wl:signal)))))))
 
 (defmacro define-wlr-private-listener (name &body listeners)
   (let ((struct-name (intern (concatenate 'string (symbol-name name) "-PRIVATE") "WLR")))

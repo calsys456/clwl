@@ -23,54 +23,54 @@
 (define-wl-interface subcompositor)
 (define-wl-interface subsurface)
 
-(defcstruct display-interface
+(define-wl-struct display-interface
   (:sync :pointer)
   (:get-registry :pointer))
 
-(defcstruct registry-interface
+(define-wl-struct registry-interface
   (:bind :pointer))
 
-(defcstruct compositor-interface
+(define-wl-struct compositor-interface
   (:create-surface :pointer)
   (:create-region :pointer))
 
-(defcstruct shm-pool-interface
+(define-wl-struct shm-pool-interface
   (:create-buffer :pointer)
   (:destroy :pointer)
   (:resize :pointer))
 
-(defcstruct shm-interface
+(define-wl-struct shm-interface
   (:create-pool :pointer)
   (:release :pointer))
 
-(defcstruct buffer-interface
+(define-wl-struct buffer-interface
   (:destroy :pointer))
 
-(defcstruct data-offer-interface
+(define-wl-struct data-offer-interface
   (:accept :pointer)
   (:receive :pointer)
   (:destroy :pointer)
   (:finish :pointer)
   (:set-actions :pointer))
 
-(defcstruct data-source-interface
+(define-wl-struct data-source-interface
   (:offer :pointer)
   (:destroy :pointer)
   (:set-actions :pointer))
 
-(defcstruct data-device-interface
+(define-wl-struct data-device-interface
   (:start-drag :pointer)
   (:set-selection :pointer)
   (:release :pointer))
 
-(defcstruct data-device-manager-interface
+(define-wl-struct data-device-manager-interface
   (:create-data-source :pointer)
   (:get-data-device :pointer))
 
-(defcstruct shell-interface
+(define-wl-struct shell-interface
   (:get-shell-surface :pointer))
 
-(defcstruct shell-surface-interface
+(define-wl-struct shell-surface-interface
   (:pong :pointer)
   (:move :pointer)
   (:resize :pointer)
@@ -82,7 +82,7 @@
   (:set-title :pointer)
   (:set-class :pointer))
 
-(defcstruct surface-interface
+(define-wl-struct surface-interface
   (:destroy :pointer)
   (:attach :pointer)
   (:damage :pointer)
@@ -95,35 +95,35 @@
   (:damage-buffer :pointer)
   (:offset :pointer))
 
-(defcstruct seat-interface
+(define-wl-struct seat-interface
   (:get-pointer :pointer)
   (:get-keyboard :pointer)
   (:get-touch :pointer)
   (:release :pointer))
 
-(defcstruct pointer-interface
+(define-wl-struct pointer-interface
   (:set-cursor :pointer)
   (:release :pointer))
 
-(defcstruct keyboard-interface
+(define-wl-struct keyboard-interface
   (:release :pointer))
 
-(defcstruct touch-interface
+(define-wl-struct touch-interface
   (:release :pointer))
 
-(defcstruct output-interface
+(define-wl-struct output-interface
   (:release :pointer))
 
-(defcstruct region-interface
+(define-wl-struct region-interface
   (:destroy :pointer)
   (:add :pointer)
   (:subtract :pointer))
 
-(defcstruct subcompositor-interface
+(define-wl-struct subcompositor-interface
   (:destroy :pointer)
   (:get-subsurface :pointer))
 
-(defcstruct subsurface-interface
+(define-wl-struct subsurface-interface
   (:destroy :pointer)
   (:set-position :pointer)
   (:place-above :pointer)

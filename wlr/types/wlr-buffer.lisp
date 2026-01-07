@@ -1,6 +1,6 @@
 (in-package "WLR")
 
-(defcstruct shm-attributes
+(define-wlr-struct shm-attributes
   (:fd :int)
   (:format :uint32)
   (:width :int)
@@ -17,7 +17,7 @@
   destroy
   release)
 
-(defcstruct buffer
+(define-wlr-struct buffer
   (:impl :pointer)
   (:width :int)
   (:height :int)
@@ -57,12 +57,12 @@
 
 (define-wlr-func buffer end-data-ptr-access :void)
 
-(defcstruct client-buffer-private
+(define-wlr-struct client-buffer-private
   (:source-destroy (:struct wl:listener))
   (:renderer-destroy (:struct wl:listener))
   (:n-ignore-locks :size))
 
-(defcstruct client-buffer
+(define-wlr-struct client-buffer
   (:base (:struct buffer))
   (:texture :pointer)
   (:source :pointer)
@@ -70,12 +70,12 @@
 
 (define-wlr-func buffer client-buffer-get :pointer)
 
-(defcstruct single-pixel-buffer-v1-private
+(define-wlr-struct single-pixel-buffer-v1-private
   (:resource :pointer)
   (:release (:struct wl:listener))
   (:argb8888 (:array :uint8 4)))
 
-(defcstruct single-pixel-buffer-v1
+(define-wlr-struct single-pixel-buffer-v1
   (:base (:struct buffer))
   (:r :uint32)
   (:g :uint32)

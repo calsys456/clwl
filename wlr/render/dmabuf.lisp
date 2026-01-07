@@ -1,6 +1,6 @@
 (in-package "WLR")
 
-(defcstruct dmabuf-attributes
+(define-wlr-struct dmabuf-attributes
   (:width :int32)
   (:height :int32)
   (:format :uint32)

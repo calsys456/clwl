@@ -7,7 +7,7 @@
 
 (define-wlr-private-listener output-layout display-destroy)
 
-(defcstruct output-layout
+(define-wlr-struct output-layout
   (:outputs (:struct wl:list))
   (:display (:pointer (:struct wl:display)))
   (:events (:struct output-layout-events))
@@ -18,7 +18,7 @@
 
 (define-wlr-private-listener output-layout-output addon commit)
 
-(defcstruct output-layout-output
+(define-wlr-struct output-layout-output
   (:layout (:pointer (:struct output-layout)))
   (:output (:pointer (:struct output)))
   (:x :int)

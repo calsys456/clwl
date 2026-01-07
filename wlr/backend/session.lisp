@@ -2,7 +2,7 @@
 
 (define-wlr-events-struct device change remove)
 
-(defcstruct device
+(define-wlr-struct device
   (:fd :int)
   (:device-fd :int)
   (:dev :unsigned-long)
@@ -14,7 +14,7 @@
 
 (define-wlr-private-listener session event-loop-destroy)
 
-(defcstruct session
+(define-wlr-struct session
   (:active :bool)
   (:seat :string)
   (:udev :pointer)
@@ -27,7 +27,7 @@
   (:private (:struct session-private)))
 (export 'session)
 
-(defcstruct session-add-event
+(define-wlr-struct session-add-event
   (:path :string))
 (export 'session-add-event)
 
@@ -35,7 +35,7 @@
   (:hotplug 1)
   :lease)
 
-(defcstruct device-hotplug-event
+(define-wlr-struct device-hotplug-event
   (:connector-id :uint32)
   (:prop-id :uint32))
 (export 'device-hotplug-event)
@@ -43,7 +43,7 @@
 (defcunion device-hotplug-union
   (hotplug (:struct device-hotplug-event)))
 
-(defcstruct device-change-event
+(define-wlr-struct device-change-event
   (:type :int)
   (:union (:union device-hotplug-union)))
 (export 'device-change-event)

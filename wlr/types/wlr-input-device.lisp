@@ -14,7 +14,7 @@
 
 (define-wlr-events-struct input-device destroy)
 
-(defcstruct input-device
+(define-wlr-struct input-device
   (:type :int)
   (:name :string)
   (:events (:struct input-device-events))

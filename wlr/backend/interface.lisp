@@ -1,6 +1,6 @@
 (in-package "WLR")
 
-(defcstruct backend-impl
+(define-wlr-struct backend-impl
   (:start :pointer)
   (:destroy :pointer)
   (:get-drm-fd :pointer)

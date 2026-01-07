@@ -1,10 +1,10 @@
 (in-package "WLR")
 
-(defcstruct backend)
-(defcstruct renderer)
-(defcstruct allocator)
+(define-wlr-struct backend)
+(define-wlr-struct renderer)
+(define-wlr-struct allocator)
 
-(defcstruct allocator-interface
+(define-wlr-struct allocator-interface
   (:create-buffer :pointer)
   (:destroy :pointer))
 
@@ -14,7 +14,7 @@
 
 (define-wlr-events-struct allocator destroy)
 
-(defcstruct allocator
+(define-wlr-struct allocator
   (:impl (:pointer (:struct allocator-interface)))
   (:buffer-caps :uint32)
   (:events (:struct allocator-events)))

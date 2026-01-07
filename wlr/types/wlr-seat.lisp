@@ -1,27 +1,27 @@
 (in-package "WLR")
 
-(defcstruct serial-range
+(define-wlr-struct serial-range
   (:min-incl :uint32)
   (:max-incl :uint32))
 
-(defcstruct serial-ringset
+(define-wlr-struct serial-ringset
   (:data (:array (:struct serial-range) 128))
   (:end :int)
   (:count :int))
 
-(defcstruct primary-selection-source)
-(defcstruct seat)
-(defcstruct data-source)
-(defcstruct drag)
+(define-wlr-struct primary-selection-source)
+(define-wlr-struct seat)
+(define-wlr-struct data-source)
+(define-wlr-struct drag)
 
 (define-wlr-events-struct seat-client destroy)
 
-(defcstruct seat-client-value120
+(define-wlr-struct seat-client-value120
   (:acc-discrete (:array :int32 2))
   (:last-discrete (:array :int32 2))
   (:acc-axis (:array :double 2)))
 
-(defcstruct seat-client
+(define-wlr-struct seat-client
   (:client (:pointer (:struct wl:client)))
   (:seat (:pointer (:struct seat)))
   (:link (:struct wl:list))
@@ -39,7 +39,7 @@
 
 (define-wlr-private-listener touch-point surface-destroy focus-surface-destroy client-destroy)
 
-(defcstruct touch-point
+(define-wlr-struct touch-point
   (:touch-id :int32)
   (:surface (:pointer (:struct surface)))
   (:client (:pointer (:struct seat-client)))
@@ -51,7 +51,7 @@
   (:link (:struct wl:list))
   (:private (:struct touch-point-private)))
 
-(defcstruct pointer-grab-interface
+(define-wlr-struct pointer-grab-interface
   (:enter :pointer)
   (:clear-focus :pointer)
   (:motion :pointer)
@@ -60,14 +60,14 @@
   (:frame :pointer)
   (:cancel :pointer))
 
-(defcstruct keyboard-grab-interface
+(define-wlr-struct keyboard-grab-interface
   (:enter :pointer)
   (:clear-focus :pointer)
   (:key :pointer)
   (:modifiers :pointer)
   (:cancel :pointer))
 
-(defcstruct touch-grab-interface
+(define-wlr-struct touch-grab-interface
   (:down :pointer)
   (:up :pointer)
   (:motion :pointer)
@@ -76,22 +76,22 @@
   (:cancel :pointer)
   (:wl-cancel :pointer))
 
-(defcstruct seat-touch-grab
+(define-wlr-struct seat-touch-grab
   (:interface (:pointer (:struct touch-grab-interface)))
   (:seat (:pointer (:struct seat)))
   (:data (:pointer :void)))
 
-(defcstruct seat-keyboard-grab
+(define-wlr-struct seat-keyboard-grab
   (:interface (:pointer (:struct keyboard-grab-interface)))
   (:seat (:pointer (:struct seat)))
   (:data (:pointer :void)))
 
-(defcstruct seat-pointer-grab
+(define-wlr-struct seat-pointer-grab
   (:interface (:pointer (:struct pointer-grab-interface)))
   (:seat (:pointer (:struct seat)))
   (:data (:pointer :void)))
 
-(defcstruct seat-pointer-button
+(define-wlr-struct seat-pointer-button
   (:button :uint32)
   (:n-pressed :size))
 
@@ -99,7 +99,7 @@
 
 (define-wlr-private-listener seat-pointer-state surface-destroy)
 
-(defcstruct seat-pointer-state
+(define-wlr-struct seat-pointer-state
   (:seat (:pointer (:struct seat)))
   (:focused-client (:pointer (:struct seat-client)))
   (:focused-surface (:pointer (:struct surface)))
@@ -121,7 +121,7 @@
 
 (define-wlr-private-listener seat-keyboard-state keyboard-destroy keyboard-keymap keyboard-repeat-info surface-destroy)
 
-(defcstruct seat-keyboard-state
+(define-wlr-struct seat-keyboard-state
   (:seat (:pointer (:struct seat)))
   (:keyboard (:pointer (:struct keyboard)))
   (:focused-client (:pointer (:struct seat-client)))
@@ -131,7 +131,7 @@
   (:events (:struct seat-keyboard-state-events))
   (:private (:struct seat-keyboard-state-private)))
 
-(defcstruct seat-touch-state
+(define-wlr-struct seat-touch-state
   (:seat (:pointer (:struct seat)))
   (:touch-points (:struct wl:list))
   (:grab-serial :uint32)
@@ -143,7 +143,7 @@
 
 (define-wlr-private-listener seat display-destroy selection-source-destroy primary-selection-source-destroy drag-source-destroy)
 
-(defcstruct seat
+(define-wlr-struct seat
   (:global (:pointer (:struct wl:global)))
   (:display (:pointer (:struct wl:display)))
   (:clients (:struct wl:list))
@@ -166,34 +166,34 @@
   (:data (:pointer :void))
   (:private (:struct seat-private)))
 
-(defcstruct seat-pointer-request-set-cursor-event
+(define-wlr-struct seat-pointer-request-set-cursor-event
   (:seat-client (:pointer (:struct seat-client)))
   (:surface (:pointer (:struct surface)))
   (:serial :uint32)
   (:hotspot-x :int32)
   (:hotspot-y :int32))
 
-(defcstruct seat-request-set-selection-event
+(define-wlr-struct seat-request-set-selection-event
   (:source (:pointer (:struct data-source)))
   (:serial :uint32))
 
-(defcstruct seat-request-set-primary-selection-event
+(define-wlr-struct seat-request-set-primary-selection-event
   (:source (:pointer (:struct primary-selection-source)))
   (:serial :uint32))
 
-(defcstruct seat-request-start-drag-event
+(define-wlr-struct seat-request-start-drag-event
   (:drag (:pointer (:struct drag)))
   (:origin (:pointer (:struct surface)))
   (:serial :uint32))
 
-(defcstruct seat-pointer-focus-change-event
+(define-wlr-struct seat-pointer-focus-change-event
   (:seat (:pointer (:struct seat)))
   (:old-surface (:pointer (:struct surface)))
   (:new-surface (:pointer (:struct surface)))
   (:sx :double)
   (:sy :double))
 
-(defcstruct seat-keyboard-focus-change-event
+(define-wlr-struct seat-keyboard-focus-change-event
   (:seat (:pointer (:struct seat)))
   (:old-surface (:pointer (:struct surface)))
   (:new-surface (:pointer (:struct surface))))

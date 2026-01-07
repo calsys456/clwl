@@ -1,20 +1,20 @@
 (in-package "WLR")
 
-(defcstruct addon-set-private
+(define-wlr-struct addon-set-private
   (:addons (:struct wl:list)))
 
-(defcstruct addon-set
+(define-wlr-struct addon-set
   (:private (:struct addon-set-private)))
 
-(defcstruct addon-interface
+(define-wlr-struct addon-interface
   (:name :string)
   (:destroy :pointer))
 
-(defcstruct addon-private
+(define-wlr-struct addon-private
   (:owner :pointer)
   (:link (:struct wl:list)))
 
-(defcstruct addon
+(define-wlr-struct addon
   (:impl (:pointer (:struct addon-interface)))
   (:private (:struct addon-private)))
 

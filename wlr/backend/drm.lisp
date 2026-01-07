@@ -2,11 +2,11 @@
 
 (define-wlr-events-struct drm-lease destroy)
 
-(defcstruct drm-backend)
-(defcstruct session)
-(defcstruct device)
+(define-wlr-struct drm-backend)
+(define-wlr-struct session)
+(define-wlr-struct device)
 
-(defcstruct drm-lease
+(define-wlr-struct drm-lease
   (:fd :int)
   (:lessee-id :uint32)
   (:drm-backend (:pointer (:struct drm-backend)))

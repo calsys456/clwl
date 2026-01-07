@@ -15,7 +15,7 @@
   hold-begin
   hold-end)
 
-(defcstruct pointer
+(define-wlr-struct pointer
   (:base (:struct input-device))
   (:impl :pointer)
   (:output-name :string)
@@ -24,7 +24,7 @@
   (:events (:struct pointer-events))
   (:data :pointer))
 
-(defcstruct pointer-motion-event
+(define-wlr-struct pointer-motion-event
   (:pointer (:pointer (:struct pointer)))
   (:time-msec :uint32)
   (:delta-x :double)
@@ -32,19 +32,19 @@
   (:unaccel-dx :double)
   (:unaccel-dy :double))
 
-(defcstruct pointer-motion-absolute-event
+(define-wlr-struct pointer-motion-absolute-event
   (:pointer (:pointer (:struct pointer)))
   (:time-msec :uint32)
   (:x :double)
   (:y :double))
 
-(defcstruct pointer-button-event
+(define-wlr-struct pointer-button-event
   (:pointer (:pointer (:struct pointer)))
   (:time-msec :uint32)
   (:button :uint32)
   (:state :int))
 
-(defcstruct pointer-axis-event
+(define-wlr-struct pointer-axis-event
   (:pointer (:pointer (:struct pointer)))
   (:time-msec :uint32)
   (:source :int)
@@ -53,29 +53,29 @@
   (:delta :double)
   (:delta-discrete :int32))
 
-(defcstruct pointer-swipe-begin-event
+(define-wlr-struct pointer-swipe-begin-event
   (:pointer (:pointer (:struct pointer)))
   (:time-msec :uint32)
   (:fingers :uint32))
 
-(defcstruct pointer-swipe-update-event
+(define-wlr-struct pointer-swipe-update-event
   (:pointer (:pointer (:struct pointer)))
   (:time-msec :uint32)
   (:fingers :uint32)
   (:dx :double)
   (:dy :double))
 
-(defcstruct pointer-swipe-end-event
+(define-wlr-struct pointer-swipe-end-event
   (:pointer (:pointer (:struct pointer)))
   (:time-msec :uint32)
   (:cancelled :bool))
 
-(defcstruct pointer-pinch-begin-event
+(define-wlr-struct pointer-pinch-begin-event
   (:pointer (:pointer (:struct pointer)))
   (:time-msec :uint32)
   (:fingers :uint32))
 
-(defcstruct pointer-pinch-update-event
+(define-wlr-struct pointer-pinch-update-event
   (:pointer (:pointer (:struct pointer)))
   (:time-msec :uint32)
   (:fingers :uint32)
@@ -84,17 +84,17 @@
   (:scale :double)
   (:rotation :double))
 
-(defcstruct pointer-pinch-end-event
+(define-wlr-struct pointer-pinch-end-event
   (:pointer (:pointer (:struct pointer)))
   (:time-msec :uint32)
   (:cancelled :bool))
 
-(defcstruct pointer-hold-begin-event
+(define-wlr-struct pointer-hold-begin-event
   (:pointer (:pointer (:struct pointer)))
   (:time-msec :uint32)
   (:fingers :uint32))
 
-(defcstruct pointer-hold-end-event
+(define-wlr-struct pointer-hold-end-event
   (:pointer (:pointer (:struct pointer)))
   (:time-msec :uint32)
   (:cancelled :bool))

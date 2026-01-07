@@ -1,14 +1,14 @@
 (in-package "WLR")
 
-(defcstruct xdg-surface)
+(define-wlr-struct xdg-surface)
 
 (defctype scene-buffer-point-accepts-input-func :pointer)
 (defctype scene-buffer-iterator-func :pointer)
 
-(defcstruct damage-ring-private
+(define-wlr-struct damage-ring-private
   (:buffers (:struct wl:list)))
 
-(defcstruct damage-ring
+(define-wlr-struct damage-ring
   (:current (:struct wl-util:pixman-region32))
   (:private (:struct damage-ring-private)))
 
@@ -19,7 +19,7 @@
 
 (define-wlr-events-struct scene-node destroy)
 
-(defcstruct scene-node
+(define-wlr-struct scene-node
   (:type :int)
   (:parent :pointer)
   (:link (:struct wl:list))
@@ -36,33 +36,33 @@
   :rerender
   :highlight)
 
-(defcstruct scene-tree
+(define-wlr-struct scene-tree
   (:node (:struct scene-node))
   (:children (:struct wl:list)))
 
-(defcstruct scene
+(define-wlr-struct scene
   (:tree (:struct scene-tree))
   (:outputs (:struct wl:list))
   (:linux-dmabuf-v1 :pointer)
   (:gamma-control-manager-v1 :pointer)
   (:private :pointer))
 
-(defcstruct scene-surface
+(define-wlr-struct scene-surface
   (:buffer :pointer)
   (:surface :pointer)
   (:private :pointer))
 
-(defcstruct scene-rect
+(define-wlr-struct scene-rect
   (:node (:struct scene-node))
   (:width :int)
   (:height :int)
   (:color (:array :float 4)))
 
-(defcstruct scene-outputs-update-event
+(define-wlr-struct scene-outputs-update-event
   (:active :pointer)
   (:size :size))
 
-(defcstruct scene-output-sample-event
+(define-wlr-struct scene-output-sample-event
   (:output :pointer)
   (:direct-scanout :bool))
 
@@ -75,7 +75,7 @@
   output-sample
   frame-done)
 
-(defcstruct scene-buffer
+(define-wlr-struct scene-buffer
   (:node (:struct scene-node))
   (:buffer :pointer)
   (:events (:struct scene-buffer-events))
@@ -92,7 +92,7 @@
 
 (define-wlr-events-struct scene-output destroy)
 
-(defcstruct scene-output
+(define-wlr-struct scene-output
   (:output :pointer)
   (:link (:struct wl:list))
   (:scene :pointer)
@@ -103,23 +103,23 @@
   (:events (:struct scene-output-events))
   (:private :pointer))
 
-(defcstruct scene-output-layout)
+(define-wlr-struct scene-output-layout)
 
-(defcstruct scene-timer
+(define-wlr-struct scene-timer
   (:pre-render-duration :int64)
   (:render-timer :pointer))
 
-(defcstruct scene-layer-surface-v1
+(define-wlr-struct scene-layer-surface-v1
   (:tree :pointer)
   (:layer-surface :pointer)
   (:private :pointer))
 
-(defcstruct scene-buffer-set-buffer-options
+(define-wlr-struct scene-buffer-set-buffer-options
   (:damage (:pointer (:struct wl-util:pixman-region32)))
   (:wait-timeline :pointer)
   (:wait-point :uint64))
 
-(defcstruct scene-output-state-options
+(define-wlr-struct scene-output-state-options
   (:timer :pointer)
   (:color-transform :pointer)
   (:swapchain :pointer))

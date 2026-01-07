@@ -1,8 +1,8 @@
 (in-package "WLR")
 
-(defcstruct xcursor-manager)
-(defcstruct surface)
-(defcstruct output-layout)
+(define-wlr-struct xcursor-manager)
+(define-wlr-struct surface)
+(define-wlr-struct output-layout)
 
 (define-wlr-events-struct cursor
   motion
@@ -30,7 +30,7 @@
   tablet-tool-tip
   tablet-tool-button)
 
-(defcstruct cursor
+(define-wlr-struct cursor
   (:state :pointer)
   (:x :double)
   (:y :double)

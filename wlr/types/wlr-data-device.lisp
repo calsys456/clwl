@@ -1,13 +1,13 @@
 (in-package "WLR")
 
-(defcstruct data-source)
-(defcstruct drag)
+(define-wlr-struct data-source)
+(define-wlr-struct drag)
 
 (define-wlr-events-struct data-device-manager destroy)
 
 (define-wlr-private-listener data-device-manager display-destroy)
 
-(defcstruct data-device-manager
+(define-wlr-struct data-device-manager
   (:global :pointer)
   (:data-sources (:struct wl:list))
   (:events (:struct data-device-manager-events))
@@ -20,7 +20,7 @@
 
 (define-wlr-private-listener data-offer source-destroy)
 
-(defcstruct data-offer
+(define-wlr-struct data-offer
   (:resource (:pointer (:struct wl:resource)))
   (:source (:pointer (:struct data-source)))
   (:type :int)
@@ -30,7 +30,7 @@
   (:in-ask :bool)
   (:private (:struct data-offer-private)))
 
-(defcstruct data-source-impl
+(define-wlr-struct data-source-impl
   (:send :pointer)
   (:accept :pointer)
   (:destroy :pointer)
@@ -40,7 +40,7 @@
 
 (define-wlr-events-struct data-source destroy)
 
-(defcstruct data-source
+(define-wlr-struct data-source
   (:impl (:pointer (:struct data-source-impl)))
   (:mime-types (:struct wl:array))
   (:actions :int32)
@@ -53,7 +53,7 @@
 
 (define-wlr-private-listener drag-icon surface-destroy)
 
-(defcstruct drag-icon
+(define-wlr-struct drag-icon
   (:drag (:pointer (:struct drag)))
   (:surface (:pointer (:struct surface)))
   (:events (:struct drag-icon-events))
@@ -73,7 +73,7 @@
 
 (define-wlr-private-listener drag source-destroy seat-client-destroy focus-destroy icon-destroy)
 
-(defcstruct drag
+(define-wlr-struct drag
   (:grab-type :int)
   (:keyboard-grab (:struct seat-keyboard-grab))
   (:pointer-grab (:struct seat-pointer-grab))
@@ -93,13 +93,13 @@
   (:data :pointer)
   (:private (:struct drag-private)))
 
-(defcstruct drag-motion-event
+(define-wlr-struct drag-motion-event
   (:drag (:pointer (:struct drag)))
   (:time :uint32)
   (:sx :double)
   (:sy :double))
 
-(defcstruct drag-drop-event
+(define-wlr-struct drag-drop-event
   (:drag (:pointer (:struct drag)))
   (:time :uint32))
 

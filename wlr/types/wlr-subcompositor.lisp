@@ -1,6 +1,6 @@
 (in-package "WLR")
 
-(defcstruct subsurface-parent-state
+(define-wlr-struct subsurface-parent-state
   (:x :int32)
   (:y :int32)
   (:link (:struct wl:list))
@@ -10,7 +10,7 @@
 
 (define-wlr-private-listener subsurface surface-client-commit parent-destroy)
 
-(defcstruct subsurface
+(define-wlr-struct subsurface
   (:resource (:pointer (:struct wl:resource)))
   (:surface (:pointer (:struct surface)))
   (:parent (:pointer (:struct surface)))
@@ -28,7 +28,7 @@
 
 (define-wlr-private-listener subcompositor display-destroy)
 
-(defcstruct subcompositor
+(define-wlr-struct subcompositor
   (:global :pointer)
   (:events (:struct subcompositor-events))
   (:private (:struct subcompositor-private)))
